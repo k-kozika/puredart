@@ -4,7 +4,7 @@ plugins {
 
 val puredartRoot = rootProject.file("../..").canonicalPath
 val puredartMeta = providers.gradleProperty("puredartMeta").orNull
-    ?: error("Pass -PpuredartMeta=/absolute/path/to/puredart_meta.cpp")
+    ?: error("Pass -PpuredartMeta=/absolute/path/to/blutter_meta.cpp")
 
 android {
     namespace = "com.example.puredartdemo"

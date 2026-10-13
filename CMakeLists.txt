@@ -33,6 +33,7 @@ target_compile_features(puredart_core PUBLIC cxx_std_17)
 target_include_directories(puredart_core
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/blutter/blutter/src>
         $<INSTALL_INTERFACE:include>
 )
 set_target_properties(puredart_core PROPERTIES
@@ -71,7 +72,6 @@ if(PUREDART_BUILD_TESTS AND NOT ANDROID)
     if(PUREDART_ENABLE_RUNTIME_HOOKS)
         target_compile_definitions(puredart_tests PRIVATE PUREDART_TESTING)
     endif()
-    target_include_directories(puredart_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tools/blutter)
     target_link_libraries(puredart_tests PRIVATE puredart::core Threads::Threads)
     add_test(NAME puredart_tests COMMAND puredart_tests)
 

@@ -1,3 +1,4 @@
 [submodule "third_party/blutter"]
 	path = third_party/blutter
-	url = https://github.com/worawit/blutter.git
+	url = https://github.com/k-kozika/blutter.git
+	branch = feat/metadata

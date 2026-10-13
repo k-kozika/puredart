@@ -3,7 +3,8 @@
 #include <algorithm>
 #include <iterator>
 
-namespace puredart::meta {
+namespace blutter::meta {
+using puredart::meta::hash_name;
 namespace {
 
 constexpr char kStrings[] =
@@ -16,7 +17,8 @@ constexpr char kStrings[] =
     "index\0"
     "name\0"
     "code\0"
-    "premium\0";
+    "premium\0"
+    "pre\0mium\0";
 
 constexpr uint32_t kFromCode = 1;
 constexpr uint32_t kDartLength = 23;
@@ -27,6 +29,7 @@ constexpr uint32_t kIndex = 79;
 constexpr uint32_t kName = 85;
 constexpr uint32_t kCode = 90;
 constexpr uint32_t kPremium = 95;
+constexpr uint32_t kEmbeddedPremium = 103;
 
 constexpr Symbol unsorted_symbols[] = {
     {0, 0x5e11ac, kFromCode},
@@ -84,28 +87,38 @@ const LookupIndex* classes_by_name() {
 }
 
 constexpr Constant kConstants[] = {
-    {kBillingType, kName, kPremium, 0xb8e1f1},
+    {kBillingType, kName, kPremium, 0xb8e1f1, 7},
+    {kBillingType, kName, kEmbeddedPremium, 0xb8e201, 8},
 };
 
 const LookupIndex* constants_by_key() {
-    static const LookupIndex values[] = {
+    static LookupIndex values[] = {
         {constant_hash("BillingType", "name", "premium"), 0},
+        {constant_hash("BillingType", "name", std::string_view("pre\0mium", 8)), 1},
     };
+    static const bool sorted = [] {
+        std::sort(std::begin(values), std::end(values),
+                  [](const LookupIndex& left, const LookupIndex& right) {
+                      return left.hash < right.hash;
+                  });
+        return true;
+    }();
+    (void)sorted;
     return values;
 }
 
 }  // namespace
 
-const Bundle& puredart_bundle() {
+const Bundle& blutter_bundle() {
     static const Bundle bundle = {
-        4u,
+        5u,
         2, symbols(),
         3, kClasses, classes_by_name(),
-        1, kConstants, constants_by_key(),
+        2, kConstants, constants_by_key(),
         kStrings, sizeof(kStrings),
         {4, 12, 0xfffff, 8, 8, 16, 16, 60, 61, 62, 63, 94, 95},
     };
     return bundle;
 }
 
-}  // namespace puredart::meta
+}  // namespace blutter::meta

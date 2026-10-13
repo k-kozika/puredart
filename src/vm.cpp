@@ -91,9 +91,9 @@ bool MemoryMap::mapped(uintptr_t address, size_t length) const noexcept {
 
 uint32_t class_id(uintptr_t address, const MemoryMap& map) noexcept {
     if (!map.mapped(address, sizeof(uint32_t))) return 0;
-    const auto& layout = meta::puredart_bundle().vm;
+    const auto& layout = meta::puredart_bundle().layout;
     const uint32_t tags = *reinterpret_cast<const uint32_t*>(address);
-    return (tags >> layout.class_id_shift) & layout.class_id_mask;
+    return (tags >> layout.class_id_tag_pos) & layout.class_id_tag_mask;
 }
 
 Object::Object(uintptr_t tagged, uint64_t heap, const MemoryMap* map) noexcept
@@ -124,7 +124,7 @@ bool Object::valid() const noexcept {
 }
 
 uint32_t Object::cid() const noexcept {
-    return is_smi() ? meta::puredart_bundle().vm.cid_smi : class_id(address(), memory());
+    return is_smi() ? meta::puredart_bundle().layout.smi_cid : class_id(address(), memory());
 }
 
 const meta::ClassInfo* Object::class_info() const noexcept {
@@ -140,38 +140,38 @@ std::optional<uintptr_t> Object::raw_field(uint32_t offset) const noexcept {
 std::optional<int64_t> Object::integer() const noexcept {
     if (!valid()) return std::nullopt;
     if (is_smi()) return as_smi();
-    const auto& layout = meta::puredart_bundle().vm;
-    if (cid() != layout.cid_mint ||
-        !memory().mapped(address() + layout.instance_data_offset, sizeof(int64_t))) {
+    const auto& layout = meta::puredart_bundle().layout;
+    if (cid() != layout.mint_cid ||
+        !memory().mapped(address() + layout.instance_size, sizeof(int64_t))) {
         return std::nullopt;
     }
-    return *reinterpret_cast<const int64_t*>(address() + layout.instance_data_offset);
+    return *reinterpret_cast<const int64_t*>(address() + layout.instance_size);
 }
 
 std::optional<bool> Object::boolean() const noexcept {
-    const auto& layout = meta::puredart_bundle().vm;
-    if (!valid() || cid() != layout.cid_bool ||
-        !memory().mapped(address() + layout.instance_data_offset, sizeof(uint8_t))) {
+    const auto& layout = meta::puredart_bundle().layout;
+    if (!valid() || cid() != layout.bool_cid ||
+        !memory().mapped(address() + layout.instance_size, sizeof(uint8_t))) {
         return std::nullopt;
     }
-    return *reinterpret_cast<const uint8_t*>(address() + layout.instance_data_offset) != 0;
+    return *reinterpret_cast<const uint8_t*>(address() + layout.instance_size) != 0;
 }
 
 std::optional<double> Object::number() const noexcept {
     if (const auto integer_value = integer()) return static_cast<double>(*integer_value);
-    const auto& layout = meta::puredart_bundle().vm;
-    if (!valid() || cid() != layout.cid_double ||
-        !memory().mapped(address() + layout.instance_data_offset, sizeof(double))) {
+    const auto& layout = meta::puredart_bundle().layout;
+    if (!valid() || cid() != layout.double_cid ||
+        !memory().mapped(address() + layout.instance_size, sizeof(double))) {
         return std::nullopt;
     }
-    return *reinterpret_cast<const double*>(address() + layout.instance_data_offset);
+    return *reinterpret_cast<const double*>(address() + layout.instance_size);
 }
 
 std::optional<std::string> Object::string() const {
     if (!valid()) return std::nullopt;
-    const auto& layout = meta::puredart_bundle().vm;
-    const bool one_byte = cid() == layout.cid_string;
-    if (!one_byte && cid() != layout.cid_two_byte_string) return std::nullopt;
+    const auto& layout = meta::puredart_bundle().layout;
+    const bool one_byte = cid() == layout.one_byte_string_cid;
+    if (!one_byte && cid() != layout.two_byte_string_cid) return std::nullopt;
     const auto length_value = raw_field(layout.string_length_offset);
     if (!length_value || is_heap_object(*length_value)) return std::nullopt;
     const int64_t signed_length = smi_value(*length_value);

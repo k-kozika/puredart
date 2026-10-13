@@ -30,7 +30,7 @@ Android integration:
 ```cmake
 add_subdirectory(path/to/puredart puredart_build)
 target_link_libraries(my_hook PRIVATE puredart::core)
-puredart_add_meta(my_hook /absolute/path/to/puredart_meta.cpp)
+puredart_add_meta(my_hook /absolute/path/to/blutter_meta.cpp)
 ```
 
 Relative metadata paths resolve under `PUREDART_META_DIR` (default `meta/`).
@@ -113,20 +113,24 @@ across GC/isolate transitions. Memory-map checks are bounds checks, not GC
 synchronization. The adapter offers no general fields, collection traversal,
 heap writes, allocation, or Dart runtime invocation.
 
-Blutter is pinned to `4a60ac648bf448c5a7596437243bcd0b9376fdf0`:
+The [Blutter fork's `feat/metadata` branch](https://github.com/k-kozika/blutter/tree/feat/metadata)
+is pinned to `bda5ec4a41aa3066a3982faa6fd0b8853d6d5f24`:
 
 ```sh
 tools/blutter/setup-blutter.sh
 ```
 
-Build Blutter with `-DPUREDART_META=ON`. A normal analysis emits
-`puredart_meta.cpp` alongside the existing Blutter outputs, containing:
+A normal analysis emits `blutter_meta.cpp` and `blutter_meta.h` alongside the
+existing Blutter outputs, containing:
 
 - Function/stub names and RVAs, including `dart:*` functions.
 - Class names/CIDs and canonical custom-object constants indexed by string fields.
 - Basic-value VM layouts for 4-byte compressed-pointer builds.
 
-Metadata ABI version 4 omits general class/field layouts and allocation data.
+Metadata ABI version 5 records string constant lengths, including embedded NUL
+bytes. puredart uses the fork's metadata types and `blutter_bundle()` directly;
+`puredart::meta::puredart_bundle()` forwards to it. General class/field layouts
+and allocation data are omitted.
 Regenerate older metadata; version mismatches are rejected. Generated sources
 use a literal ABI version so rebuilding them with a newer header cannot silently
 make stale data appear compatible.

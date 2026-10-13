@@ -6,7 +6,7 @@ root_dir=$(cd "$demo_dir/../.." && pwd)
 app_dir="$root_dir/example/app"
 blutter_dir="$root_dir/third_party/blutter"
 analysis_dir="$demo_dir/build/analysis"
-meta_file="$analysis_dir/puredart_meta.cpp"
+meta_file="$analysis_dir/blutter_meta.cpp"
 payload_dir="$demo_dir/build/payload"
 
 for tool in python3 git cmake ninja; do
@@ -51,8 +51,8 @@ python3 "$blutter_dir/blutter.py" \
     "$app_dir/build/app/outputs/flutter-apk/app-release.apk" \
     "$analysis_dir" --rebuild
 
-if [[ ! -s "$meta_file" ]]; then
-    echo "puredart demo: Blutter did not generate $meta_file" >&2
+if [[ ! -s "$meta_file" || ! -s "$analysis_dir/blutter_meta.h" ]]; then
+    echo "puredart demo: Blutter did not generate blutter_meta.cpp/.h in $analysis_dir" >&2
     exit 1
 fi
 

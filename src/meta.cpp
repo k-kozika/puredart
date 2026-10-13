@@ -27,6 +27,12 @@ std::string_view view_at(const Bundle& bundle, uint32_t offset) noexcept {
                                                 : std::string_view{};
 }
 
+bool valid_constant_value(const Bundle& bundle, const Constant& item) noexcept {
+    return bundle.strings != nullptr && item.value < bundle.strings_size &&
+        item.value_length < bundle.strings_size - item.value &&
+        bundle.strings[item.value + item.value_length] == '\0';
+}
+
 uint32_t hash_constant_key(std::string_view cls, std::string_view field,
                            std::string_view value) noexcept {
     uint32_t hash = 2166136261u;
@@ -88,7 +94,7 @@ uintptr_t resolve(std::string_view name) noexcept {
     const Symbol* match = std::lower_bound(first, last, wanted,
         [](const Symbol& symbol, uint32_t hash) { return symbol.hash < hash; });
     for (; match != last && match->hash == wanted; ++match) {
-        if (equal_at(bundle, match->name_off, name)) return match->rva;
+        if (equal_at(bundle, match->name, name)) return match->rva;
     }
     return 0;
 }
@@ -105,10 +111,11 @@ uintptr_t constant(std::string_view cls, std::string_view field,
     for (; match != last && match->hash == wanted; ++match) {
         if (match->index >= bundle.constant_count) continue;
         const Constant& item = bundle.constants[match->index];
-        if (equal_at(bundle, item.class_off, cls) &&
-            equal_at(bundle, item.field_off, field) &&
-            equal_at(bundle, item.value_off, value)) {
-            return item.heap_offset;
+        if (equal_at(bundle, item.cls, cls) &&
+            equal_at(bundle, item.field, field) &&
+            valid_constant_value(bundle, item) &&
+            ::blutter::meta::constant_value(bundle, item) == value) {
+            return item.heap;
         }
     }
     return 0;
@@ -124,7 +131,7 @@ const ClassInfo* class_of(std::string_view name) noexcept {
         [](const LookupIndex& index, uint32_t hash) { return index.hash < hash; });
     for (; match != last && match->hash == wanted; ++match) {
         if (match->index < bundle.class_count &&
-            equal_at(bundle, bundle.classes[match->index].name_off, name)) {
+            equal_at(bundle, bundle.classes[match->index].name, name)) {
             return &bundle.classes[match->index];
         }
     }
@@ -142,7 +149,7 @@ const ClassInfo* class_by_id(uint32_t cid) noexcept {
 }
 
 bool validate(const Bundle& b) noexcept {
-    if (b.meta_version != PUREDART_META_VERSION || b.strings == nullptr ||
+    if (b.abi_version != PUREDART_META_VERSION || b.strings == nullptr ||
         b.strings_size == 0 || b.strings[b.strings_size - 1] != '\0') {
         return validation_failure("header or string pool");
     }
@@ -157,7 +164,7 @@ bool validate(const Bundle& b) noexcept {
         const Symbol& symbol = b.symbols[i];
         if (i != 0 && symbol.hash < previous_hash)
             return validation_failure("symbol ordering");
-        if (!valid_string_offset(b, symbol.name_off))
+        if (!valid_string_offset(b, symbol.name))
             return validation_failure("symbol name");
         previous_hash = symbol.hash;
     }
@@ -165,7 +172,7 @@ bool validate(const Bundle& b) noexcept {
         const ClassInfo& cls = b.classes[i];
         if (i != 0 && cls.cid <= b.classes[i - 1].cid)
             return validation_failure("class ordering");
-        if (!valid_string_offset(b, cls.name_off))
+        if (!valid_string_offset(b, cls.name))
             return validation_failure("class record");
     }
     if (!sorted_indexes(b.classes_by_name, b.class_count))
@@ -173,14 +180,14 @@ bool validate(const Bundle& b) noexcept {
     for (uint32_t i = 0; i < b.class_count; ++i) {
         const LookupIndex& index = b.classes_by_name[i];
         if (index.index >= b.class_count ||
-            index.hash != hash_name(view_at(b, b.classes[index.index].name_off)))
+            index.hash != hash_name(view_at(b, b.classes[index.index].name)))
             return validation_failure("class index");
     }
     for (uint32_t i = 0; i < b.constant_count; ++i) {
         const Constant& item = b.constants[i];
-        if (!valid_string_offset(b, item.class_off) ||
-            !valid_string_offset(b, item.field_off) ||
-            !valid_string_offset(b, item.value_off) || (item.heap_offset & 1u) == 0) {
+        if (!valid_string_offset(b, item.cls) ||
+            !valid_string_offset(b, item.field) ||
+            !valid_constant_value(b, item) || (item.heap & 1u) == 0) {
             return validation_failure("constant record");
         }
     }
@@ -191,15 +198,15 @@ bool validate(const Bundle& b) noexcept {
         if (index.index >= b.constant_count)
             return validation_failure("constant index range");
         const Constant& item = b.constants[index.index];
-        if (index.hash != hash_constant_key(view_at(b, item.class_off),
-                                            view_at(b, item.field_off),
-                                            view_at(b, item.value_off)))
+        if (index.hash != hash_constant_key(view_at(b, item.cls),
+                                            view_at(b, item.field),
+                                            ::blutter::meta::constant_value(b, item)))
             return validation_failure("constant index hash");
     }
-    if (b.vm.compressed_word_size != sizeof(uint32_t) || b.vm.class_id_mask == 0 ||
-        b.vm.class_id_shift >= 32 ||
-        b.vm.string_length_offset >= b.vm.one_byte_string_data_offset ||
-        b.vm.string_length_offset >= b.vm.two_byte_string_data_offset) {
+    if (b.layout.compressed_word_size != sizeof(uint32_t) || b.layout.class_id_tag_mask == 0 ||
+        b.layout.class_id_tag_pos >= 32 ||
+        b.layout.string_length_offset >= b.layout.one_byte_string_data_offset ||
+        b.layout.string_length_offset >= b.layout.two_byte_string_data_offset) {
         return validation_failure("VM layout");
     }
     return true;

@@ -1,5 +1,5 @@
 #include "puredart/puredart.h"
-#include "PuredartNaming.h"
+#include <MetadataNaming.h>
 
 #include <array>
 #include <atomic>
@@ -28,8 +28,8 @@ void store(std::array<unsigned char, Size>& bytes, size_t offset, T value) {
 template <size_t Size>
 puredart::vm::Object object_from(std::array<unsigned char, Size>& bytes, uint32_t cid,
                                  const puredart::vm::MemoryMap& map) {
-    const auto& layout = puredart::meta::puredart_bundle().vm;
-    store(bytes, 0, cid << layout.class_id_shift);
+    const auto& layout = puredart::meta::puredart_bundle().layout;
+    store(bytes, 0, cid << layout.class_id_tag_pos);
     const uintptr_t address = reinterpret_cast<uintptr_t>(bytes.data());
     expect((address & puredart::vm::kHeapObjectTag) == 0, "fixture object is aligned");
     return puredart::vm::Object(address | puredart::vm::kHeapObjectTag, 0, &map);
@@ -41,7 +41,7 @@ int main() {
     using namespace puredart;
     expect(meta::validate(meta::puredart_bundle()), "fixture validates");
     meta::Bundle unsupported_layout = meta::puredart_bundle();
-    unsupported_layout.vm.compressed_word_size = 8;
+    unsupported_layout.layout.compressed_word_size = 8;
     expect(!meta::validate(unsupported_layout), "non-compressed-pointer layout is rejected");
     std::array<meta::LookupIndex, 3> invalid_class_index{};
     std::memcpy(invalid_class_index.data(), meta::puredart_bundle().classes_by_name,
@@ -60,8 +60,26 @@ int main() {
     expect(meta::resolve("missing") == 0, "missing symbol");
     expect(meta::constant("BillingType", "name", "premium") == 0xb8e1f1,
            "constant lookup");
+    expect(meta::constant("BillingType", "name", std::string_view("pre\0mium", 8)) ==
+               0xb8e201,
+           "constant lookup preserves embedded NUL bytes");
+    expect(meta::constant("BillingType", "name", "pre") == 0,
+           "constant lookup does not truncate embedded NUL bytes");
     expect(meta::constant("BillingType", "name", "free") == 0,
            "missing constant");
+    const meta::Bundle& bundle = meta::puredart_bundle();
+    std::array<meta::Constant, 2> invalid_constants{};
+    std::memcpy(invalid_constants.data(), bundle.constants, sizeof(invalid_constants));
+    meta::Bundle invalid_constant_bundle = bundle;
+    invalid_constant_bundle.constants = invalid_constants.data();
+    invalid_constants[0].value_length = bundle.strings_size;
+    expect(!meta::validate(invalid_constant_bundle), "constant length outside pool is rejected");
+    invalid_constants[0] = bundle.constants[0];
+    invalid_constants[0].value_length = 6;
+    expect(!meta::validate(invalid_constant_bundle), "unterminated constant value is rejected");
+    invalid_constants[0] = bundle.constants[0];
+    invalid_constants[1].value_length = 3;
+    expect(!meta::validate(invalid_constant_bundle), "incorrect constant value hash is rejected");
 
     const meta::ClassInfo* cls = meta::class_of("BillingType");
     expect(cls != nullptr && cls->cid == 6735, "class lookup");
@@ -100,28 +118,28 @@ int main() {
 #endif
 
     const vm::MemoryMap map = vm::MemoryMap::read();
-    const auto& layout = meta::puredart_bundle().vm;
+    const auto& layout = meta::puredart_bundle().layout;
 
     expect(!vm::Object{}.valid(), "absent object is invalid");
     expect(vm::Object(0, 0).integer() == std::optional<int64_t>(0), "zero Smi is valid");
     expect(vm::Object::from_compressed(0xfffffffeu, 0).integer() ==
                std::optional<int64_t>(-1), "negative compressed Smi");
     meta::Bundle old_bundle = meta::puredart_bundle();
-    old_bundle.meta_version = 3;
+    old_bundle.abi_version = 4;
     expect(!meta::validate(old_bundle), "old metadata version is rejected");
     alignas(16) std::array<unsigned char, 64> number_bytes{};
-    auto mint = object_from(number_bytes, layout.cid_mint, map);
-    store(number_bytes, layout.instance_data_offset, int64_t{-42});
+    auto mint = object_from(number_bytes, layout.mint_cid, map);
+    store(number_bytes, layout.instance_size, int64_t{-42});
     expect(mint.integer() == std::optional<int64_t>(-42), "boxed integer");
-    auto real = object_from(number_bytes, layout.cid_double, map);
-    store(number_bytes, layout.instance_data_offset, 3.25);
+    auto real = object_from(number_bytes, layout.double_cid, map);
+    store(number_bytes, layout.instance_size, 3.25);
     expect(real.number() == std::optional<double>(3.25), "boxed double");
-    auto boolean = object_from(number_bytes, layout.cid_bool, map);
-    store(number_bytes, layout.instance_data_offset, uint8_t{1});
+    auto boolean = object_from(number_bytes, layout.bool_cid, map);
+    store(number_bytes, layout.instance_size, uint8_t{1});
     expect(boolean.boolean() == std::optional<bool>(true), "boxed bool");
 
     alignas(16) std::array<unsigned char, 64> latin1_bytes{};
-    vm::Object latin1 = object_from(latin1_bytes, layout.cid_string, map);
+    vm::Object latin1 = object_from(latin1_bytes, layout.one_byte_string_cid, map);
     store(latin1_bytes, layout.string_length_offset, uint32_t{4});  // Smi(2)
     latin1_bytes[layout.one_byte_string_data_offset] = 'A';
     latin1_bytes[layout.one_byte_string_data_offset + 1] = 0xe9;
@@ -129,7 +147,7 @@ int main() {
            "OneByteString Latin-1 is converted to UTF-8");
 
     alignas(16) std::array<unsigned char, 64> utf16_bytes{};
-    vm::Object utf16 = object_from(utf16_bytes, layout.cid_two_byte_string, map);
+    vm::Object utf16 = object_from(utf16_bytes, layout.two_byte_string_cid, map);
     store(utf16_bytes, layout.string_length_offset, uint32_t{6});  // Smi(3)
     store(utf16_bytes, layout.two_byte_string_data_offset, uint16_t{'A'});
     store(utf16_bytes, layout.two_byte_string_data_offset + 2, uint16_t{0xd83d});
@@ -139,21 +157,21 @@ int main() {
 
     alignas(16) std::array<unsigned char, 64> invalid_utf16_bytes{};
     vm::Object invalid_utf16 =
-        object_from(invalid_utf16_bytes, layout.cid_two_byte_string, map);
+        object_from(invalid_utf16_bytes, layout.two_byte_string_cid, map);
     store(invalid_utf16_bytes, layout.string_length_offset, uint32_t{2});  // Smi(1)
     store(invalid_utf16_bytes, layout.two_byte_string_data_offset, uint16_t{0xd83d});
     expect(invalid_utf16.string() == std::optional<std::string>("\xef\xbf\xbd"),
            "unpaired surrogate is replaced");
 
-    expect(blutter::function_name("app$main", "Widget", "build", false) ==
+    expect(::blutter::metadata::function_name("app$main", "Widget", "build", false) ==
                "Widget::build",
            "short method name");
-    expect(blutter::function_name("app$main", "Widget", "build", true) ==
+    expect(::blutter::metadata::function_name("app$main", "Widget", "build", true) ==
                "app$main$Widget::build",
            "qualified method name");
-    expect(blutter::function_name("app$main", "", "main", false) == "main",
+    expect(::blutter::metadata::function_name("app$main", "", "main", false) == "main",
            "short top-level function name");
-    expect(blutter::function_name("app$main", "", "main", true) == "app$main$main",
+    expect(::blutter::metadata::function_name("app$main", "", "main", true) == "app$main$main",
            "qualified top-level function name");
 
 #if defined(PUREDART_TESTING)
