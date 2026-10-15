@@ -114,7 +114,7 @@ synchronization. The adapter offers no general fields, collection traversal,
 heap writes, allocation, or Dart runtime invocation.
 
 The [Blutter fork's `feat/metadata` branch](https://github.com/k-kozika/blutter/tree/feat/metadata)
-is pinned to `bda5ec4a41aa3066a3982faa6fd0b8853d6d5f24`:
+is pinned to `46c64d36cd9ab493b253e87952d8d56989e6a182`:
 
 ```sh
 tools/blutter/setup-blutter.sh
@@ -126,6 +126,28 @@ existing Blutter outputs, containing:
 - Function/stub names and RVAs, including `dart:*` functions.
 - Class names/CIDs and canonical custom-object constants indexed by string fields.
 - Basic-value VM layouts for 4-byte compressed-pointer builds.
+
+Use repeatable `--metadata-class` options to emit only selected classes:
+
+```sh
+python3 third_party/blutter/blutter.py path/to/app.apk out_dir --rebuild \
+  --metadata-class MyHomePage \
+  --metadata-class 'package:app/main.dart::_MyHomePageState'
+```
+
+Selectors match exact class names, or exact `library URL::class name` pairs.
+A bare name selects every class with that name; each selector must match at
+least one class. Selected metadata includes class IDs, methods declared by those
+classes, and string-field constants from their instances (including inherited
+fields). Parent/child classes, top-level functions, and VM stubs are excluded.
+Other Blutter outputs and analysis are unchanged. Omit the options for full
+metadata. The metadata ABI and runtime lookup names remain unchanged.
+
+CLI regression tests run with `python3 -m unittest discover -s
+third_party/blutter/tests`. To check generated bundles against the release demo,
+run `python3 tests/check_metadata_filter.py --blutter <rebuilt-executable>
+--libapp <demo-libapp.so>`. This compiles and validates the generated C++ and
+checks class, symbol, and constant lookups.
 
 Metadata ABI version 5 records string constant lengths, including embedded NUL
 bytes. puredart uses the fork's metadata types and `blutter_bundle()` directly;

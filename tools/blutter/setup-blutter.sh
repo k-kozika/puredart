@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 puredart_dir=$(cd "$script_dir/../.." && pwd)
 blutter_dir=${1:-"$puredart_dir/third_party/blutter"}
-expected_commit=bda5ec4a41aa3066a3982faa6fd0b8853d6d5f24
+expected_commit=46c64d36cd9ab493b253e87952d8d56989e6a182
 
 if [[ ! -e "$blutter_dir/.git" ]]; then
     if [[ "$blutter_dir" == "$puredart_dir/third_party/blutter" && -e "$puredart_dir/.git" ]]; then
