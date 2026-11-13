@@ -193,3 +193,9 @@ The intentionally unrolled `tests/fixtures/large.js` is also checked in.
 Regenerate goldens explicitly with
 `uv run --locked python hermes/tools/generate_fixtures.py --output ...`;
 ordinary tests never regenerate tracked fixtures.
+
+The [hookme app and injection demo](example/README.md) live in `example/app/`
+and `example/demo/`. Metadata is generated for each release APK and accepted
+only when the full original bundle bytes match. Machine-local verification
+records are kept separately from the repository; choose their location with
+the runner's `--reports` option.

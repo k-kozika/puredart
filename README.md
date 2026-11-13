@@ -11,6 +11,8 @@ The repository provides:
 
 Consumers supply app-specific hook callbacks and generated metadata.
 Shared host-side SDK/ADB and ELF/DWARF helpers live in [tools/](tools/README.md).
+The `hookme` sample apps and their injection demos live in
+[dart/example/](dart/example/README.md) and [hermes/example/](hermes/example/README.md).
 
 There is no external hook-engine dependency. Native consumers can add only
 `native/` to their CMake project; they do not need Dart metadata or the adapter.
