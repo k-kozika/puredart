@@ -95,10 +95,16 @@ void flush(uintptr_t start, size_t length) {
     __builtin___clear_cache(reinterpret_cast<char*>(start), reinterpret_cast<char*>(start + length));
 }
 
-bool stack_save(uint32_t instruction, uint8_t stack_register) {
+bool relocatable_entry(uint32_t instruction, uint8_t stack_register) {
     const uint32_t base = static_cast<uint32_t>(stack_register) << 5;
     return (instruction & 0xffc003e0) == (0xa9800000 | base) ||
-           (instruction & 0xffe00fe0) == (0xf8000c00 | base);
+           (instruction & 0xffe00fe0) == (0xf8000c00 | base) ||
+           // SUB SP,SP,#imm (unshifted): position-independent stack allocation.
+           // Hermes destructors can allocate before their first stack save.
+           (stack_register == 31 && (instruction & 0xffc003ff) == 0xd10003ff) ||
+           // LDR Xt,[Xn,#unsigned-imm] has no PC-relative state to relocate.
+           // Some optimized Hermes entrypoints are frameless tail calls.
+           (stack_register == 31 && (instruction & 0xffc00000) == 0xf9400000);
 }
 bool pac(uint32_t instruction) {
     return instruction == 0xd503233f || instruction == 0xd503237f; // paciasp/pacibsp
@@ -158,7 +164,7 @@ bool redirect_all(const std::vector<Redirect>& redirects, std::vector<Handle>* h
                 if (!code_range(site, 4, &protection)) return false;
                 first = *reinterpret_cast<const uint32_t*>(site);
             }
-            if (pac(first) || (redirect.original && !stack_save(first, redirect.stack_register))) return false;
+            if (pac(first) || (redirect.original && !relocatable_entry(first, redirect.stack_register))) return false;
             if (std::any_of(prepared.begin(), prepared.end(), [site](const Patch& p) { return p.site == site; }) ||
                 std::any_of(patches.begin(), patches.end(), [site](const auto& p) { return p.second.site == site; }))
                 return false;

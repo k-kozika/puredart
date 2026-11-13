@@ -33,6 +33,8 @@ void run(size_t size) {
     code[24] = 0x10000000; // adr (unsupported relocation)
     code[32] = 0xd503233f; // paciasp
     code[40] = 0xa9bf79fd; // stp fp,lr,[x15,#-16]!
+    code[48] = 0xd10083ff; // sub sp,sp,#32
+    code[56] = 0xf9400008; // ldr x8,[x0]
     expect(mprotect(code, size, PROT_READ | PROT_EXEC) == 0, "protect test code");
     const uintptr_t base = reinterpret_cast<uintptr_t>(code);
     const uintptr_t replacement = base + 64;
@@ -87,6 +89,18 @@ void run(size_t size) {
            "alternate-stack veneer and trampoline preserve IP registers through x15");
     expect(purenative::remove(handles[0]) && read(base + 160) == 0xa9bf79fd,
            "remove alternate-stack hook");
+    handles.clear();
+    expect(redirect_all({{base + 192, replacement, &original}}, &handles),
+           "install native stack-allocation prologue");
+    expect(read(original + 8) == 0xd10083ff,
+           "trampoline replays SUB SP immediate without relocation");
+    expect(purenative::remove(handles[0]) && read(base + 192) == 0xd10083ff,
+           "restore stack-allocation prologue");
+    handles.clear();
+    expect(redirect_all({{base + 224, replacement, &original}}, &handles),
+           "install native position-independent load entry");
+    expect(read(original + 8) == 0xf9400008, "trampoline replays LDR unsigned immediate");
+    expect(purenative::remove(handles[0]), "remove load entry hook");
     munmap(mapping, size * 2);
 }
 

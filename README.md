@@ -115,8 +115,9 @@ choose registers and distinguish boxed values (for example Smi) from unboxed
 integers. The adapter does not infer a Dart function signature.
 
 The engine allocates nearby veneers and atomically writes one B instruction
-per target. Original trampolines replay only supported `stp`/`str` stack-save
-prologues, then branch directly to the original code. A leading BTI is retained;
+per target. Original trampolines replay supported `stp`/`str` stack saves, native
+`sub sp,sp,#imm` stack allocation, or native unsigned-immediate `ldr x` entries,
+then branch directly to the original code. A leading BTI is retained;
 unsupported prologues, PAC entry sequences, duplicate entries, and unavailable
 nearby mappings are rejected before the batch is patched. This is an entry-hook
 engine with a limited prologue contract, not a general instruction relocator.
