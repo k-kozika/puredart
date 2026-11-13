@@ -1,17 +1,16 @@
 # hookme
 
-A new Flutter project.
+A Flutter counter app for the [Dart native-hook demo](../demo/README.md).
+It calls the non-inlined `counterStep()` helper and normally increments by one.
+The separately injected payload overrides that helper's return with ten.
 
-## Getting Started
+Use the pinned Flutter 3.41.2 / Dart 3.11.0 SDK in `mise.toml`:
 
-This project is a starting point for a Flutter application.
+```sh
+flutter pub get
+flutter analyze
+flutter test
+```
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The Android package is `com.example.hookme`. Build the release APK, Blutter
+metadata and injection payload with `../demo/build-demo.sh`.

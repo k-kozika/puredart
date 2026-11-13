@@ -2,25 +2,16 @@
 set -euo pipefail
 
 demo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+root_dir=$(cd "$demo_dir/../../.." && pwd)
 payload_dir="$demo_dir/build/payload"
 device_dir=/data/local/tmp/puredart-demo
 package=com.example.hookme
 
-if [[ -n "${ADB_BIN:-}" ]]; then
-    adb_bin="$ADB_BIN"
-elif [[ -n "${ANDROID_HOME:-}" && -x "$ANDROID_HOME/platform-tools/adb" ]]; then
-    adb_bin="$ANDROID_HOME/platform-tools/adb"
+adb=(uv run --locked --project "$root_dir" python "$root_dir/tools/android.py" adb)
+if [[ -n "${FRIDA_BIN:-}" ]]; then
+    frida=("$FRIDA_BIN")
 else
-    adb_bin=$(command -v adb || true)
-fi
-frida_bin=${FRIDA_BIN:-$(command -v frida || true)}
-if [[ -z "$adb_bin" || ! -x "$adb_bin" ]]; then
-    echo "puredart demo: adb not found; set ANDROID_HOME or ADB_BIN" >&2
-    exit 1
-fi
-if [[ -z "$frida_bin" || ! -x "$frida_bin" ]]; then
-    echo "puredart demo: frida not found; set FRIDA_BIN" >&2
-    exit 1
+    frida=(uv run --locked --project "$root_dir" --group injection frida)
 fi
 
 for file in app-release.apk libpuredart_demo.so load.js; do
@@ -30,23 +21,35 @@ for file in app-release.apk libpuredart_demo.so load.js; do
     fi
 done
 
-"$adb_bin" install -r "$payload_dir/app-release.apk"
-"$adb_bin" shell mkdir -p "$device_dir"
-"$adb_bin" push "$payload_dir/libpuredart_demo.so" "$device_dir/libpuredart_demo.so.upload"
+"${adb[@]}" install -r "$payload_dir/app-release.apk"
+"${adb[@]}" shell am force-stop "$package"
+"${adb[@]}" shell mkdir -p "$device_dir"
+"${adb[@]}" push "$payload_dir/libpuredart_demo.so" "$device_dir/libpuredart_demo.so.upload"
 
-apk_path=$("$adb_bin" shell pm path "$package" | tr -d '\r' | sed -n 's/^package://p' | head -n 1)
+apk_path=$("${adb[@]}" shell pm path "$package" | tr -d '\r' | sed -n 's/^package://p' | head -n 1)
 if [[ -z "$apk_path" || "$apk_path" != */base.apk ]]; then
     echo "puredart demo: cannot resolve installed APK path for $package" >&2
     exit 1
 fi
 native_dir=${apk_path%/base.apk}/lib/arm64
-"$adb_bin" shell su -c \
-    "cp '$device_dir/libpuredart_demo.so.upload' '$native_dir/libpuredart_demo.so'; \
+copy_script="mkdir -p '$native_dir'; \
+cp '$device_dir/libpuredart_demo.so.upload' '$native_dir/libpuredart_demo.so'; \
 chown system:system '$native_dir/libpuredart_demo.so'; \
 chmod 755 '$native_dir/libpuredart_demo.so'; \
 chcon u:object_r:apk_data_file:s0 '$native_dir/libpuredart_demo.so'; \
 rm '$device_dir/libpuredart_demo.so.upload'"
+if [[ $("${adb[@]}" shell id -u | tr -d '\r') == 0 ]]; then
+    "${adb[@]}" shell "$copy_script"
+else
+    "${adb[@]}" shell su -c "$copy_script"
+fi
 
-runtime_loader="$payload_dir/load-runtime.js"
-sed "s|@PUREDART_NATIVE_DIR@|$native_dir|g" "$payload_dir/load.js" > "$runtime_loader"
-exec "$frida_bin" -U -f "$package" -l "$runtime_loader"
+parameters=$(printf '{"nativeDirectory":"%s"}' "$native_dir")
+if [[ -n "${FRIDA_REMOTE:-}" ]]; then
+    frida_device=(-H "$FRIDA_REMOTE")
+elif [[ -n "${ANDROID_SERIAL:-}" ]]; then
+    frida_device=(-D "$ANDROID_SERIAL")
+else
+    frida_device=(-U)
+fi
+exec "${frida[@]}" "${frida_device[@]}" -f "$package" -l "$payload_dir/load.js" -P "$parameters"

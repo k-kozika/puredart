@@ -8,6 +8,8 @@ The implementation has three layers:
   and Blutter metadata (`puredart::core`, backed by `purenative::core`).
 - Consumer: app-specific hook callbacks and generated Blutter metadata.
 
+Shared host-side SDK/ADB and ELF/DWARF helpers live in [tools/](tools/README.md).
+
 There is no external hook-engine dependency. Native consumers can add only
 `native/` to their CMake project; they do not need Dart metadata or the adapter.
 
@@ -76,6 +78,10 @@ ctest --test-dir build/dart-only --output-on-failure
 `PURENATIVE_BUILD_TESTS` and `PUREDART_BUILD_TESTS` control host tests
 independently. Each defaults to on for its top-level project and off when
 included by another project. The repository root defaults both to on.
+`HOOKTOOLS_BUILD_TESTS` controls the shared Python helper suite when uv is
+available; the root project defaults it to on. Run `uv sync --locked` for the
+Python tools. All entry points use the root `pyproject.toml` / `uv.lock`; extra
+workflow groups are described in [tools/](tools/README.md).
 Dart's Blutter dependency, metadata helper, and generation tools live under
 `dart/`; native-only builds need none of them. The ARM64 patch implementation
 and its calling-convention options live in `native/`; Dart ABI shims, callback
@@ -174,7 +180,7 @@ existing Blutter outputs, containing:
 Use repeatable `--metadata-class` options to emit only selected classes:
 
 ```sh
-python3 dart/third_party/blutter/blutter.py path/to/app.apk out_dir --rebuild \
+uv run --locked --group blutter python dart/third_party/blutter/blutter.py path/to/app.apk out_dir --rebuild \
   --metadata-class MyHomePage \
   --metadata-class 'package:app/main.dart::_MyHomePageState'
 ```
@@ -187,9 +193,9 @@ fields). Parent/child classes, top-level functions, and VM stubs are excluded.
 Other Blutter outputs and analysis are unchanged. Omit the options for full
 metadata. The metadata ABI and runtime lookup names remain unchanged.
 
-CLI regression tests run with `python3 -m unittest discover -s
+CLI regression tests run with `uv run --locked --group blutter python -m unittest discover -s
 dart/third_party/blutter/tests`. To check generated bundles against the release demo,
-run `python3 dart/tests/check_metadata_filter.py --blutter <rebuilt-executable>
+run `uv run --locked --group blutter python dart/tests/check_metadata_filter.py --blutter <rebuilt-executable>
 --libapp <demo-libapp.so>`. This compiles and validates the generated C++ and
 checks class, symbol, and constant lookups.
 

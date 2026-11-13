@@ -13,9 +13,10 @@ puredart. The demo does not allocate or write Dart heap objects.
 
 - Flutter 3.41.2 / Dart 3.11.0 (the pinned Blutter does not support Dart 3.13 snapshots).
 - Android SDK 37 and NDK 28.2.13676358.
-- ARM64 Android device with root, `su`, and a matching Frida server.
-- JDK 17 or newer, Python 3, Git, CMake, Ninja, and the [Blutter host dependencies](../../third_party/blutter/README.md).
-- `adb` and `frida` to run the injection demo.
+- ARM64 Android device with root adbd or `su`, and a matching Frida server.
+- JDK 17 or newer, uv, Git, Ninja, and the [Blutter host dependencies](../../third_party/blutter/README.md).
+- `adb` and a matching Frida server to run the injection demo.
+  Python, CMake and the Frida client/CLI are managed by the root uv project.
 
 ## Build and run
 
@@ -38,7 +39,10 @@ machine-local and ignored by Git.
 `ANDROID_HOME` may be replaced by `ANDROID_SDK_ROOT` or an existing app
 `android/local.properties`. No local configuration file is required for the
 first build when `ANDROID_HOME` is set. Set `ADB_BIN` / `FRIDA_BIN` if those
-executables are not on PATH. Use `ANDROID_SERIAL` for multiple devices.
+executables need overriding; otherwise the locked Frida CLI is used. Use
+`ANDROID_SERIAL` to select the same device for ADB and Frida. Set
+`FRIDA_REMOTE=HOST:PORT` for a forwarded or network Frida server; otherwise
+Frida uses the selected device, or USB selection (`-U`) when no serial is set.
 
 The build generates metadata from the exact release APK. Verify the helper's
 return representation in `build/analysis/asm/hookme/main.dart` when changing
@@ -50,3 +54,6 @@ Stop the injected process and launch normally to restore increments of one.
 `run-demo.sh` uses root to copy the generated library into the installed
 package's native library directory and apply its `apk_data_file` label, so the
 app can executable-map it. The APK is not repackaged for injection.
+
+The loader JavaScript is a fixed file. Its native directory is supplied with
+Frida's `-P` JSON parameters; the runner does not generate a loader script.
