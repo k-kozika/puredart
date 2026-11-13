@@ -14,7 +14,7 @@ puredart. The demo does not allocate or write Dart heap objects.
 - Flutter 3.41.2 / Dart 3.11.0 (the pinned Blutter does not support Dart 3.13 snapshots).
 - Android SDK 37 and NDK 28.2.13676358.
 - ARM64 Android device with root, `su`, and a matching Frida server.
-- JDK 17 or newer, Python 3, Git, CMake, Ninja, and the [Blutter host dependencies](../../third_party/blutter/README.md).
+- JDK 17 or newer, Python 3, Git, CMake, Ninja, and the [Blutter host dependencies](../../dart/third_party/blutter/README.md).
 - `adb` and `frida` to run the injection demo.
 
 ## Build and run

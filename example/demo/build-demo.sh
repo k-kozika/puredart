@@ -4,7 +4,7 @@ set -euo pipefail
 demo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root_dir=$(cd "$demo_dir/../.." && pwd)
 app_dir="$root_dir/example/app"
-blutter_dir="$root_dir/third_party/blutter"
+blutter_dir="$root_dir/dart/third_party/blutter"
 analysis_dir="$demo_dir/build/analysis"
 meta_file="$analysis_dir/blutter_meta.cpp"
 payload_dir="$demo_dir/build/payload"
@@ -45,7 +45,7 @@ if version.get("frameworkVersion") != "3.41.2" or version.get("dartSdkVersion", 
     "$flutter_bin" build apk --release --target-platform android-arm64
 )
 
-"$root_dir/tools/blutter/setup-blutter.sh" "$blutter_dir"
+"$root_dir/dart/tools/blutter/setup-blutter.sh" "$blutter_dir"
 mkdir -p "$analysis_dir"
 python3 "$blutter_dir/blutter.py" \
     "$app_dir/build/app/outputs/flutter-apk/app-release.apk" \

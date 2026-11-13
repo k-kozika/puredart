@@ -9,7 +9,7 @@ if(NOT DEFINED PUREDART_META_FILE OR NOT EXISTS "${PUREDART_META_FILE}")
 endif()
 
 set(PUREDART_ENABLE_RUNTIME_HOOKS ON CACHE BOOL "" FORCE)
-add_subdirectory("${PUREDART_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/puredart")
+add_subdirectory("${PUREDART_ROOT}/dart" "${CMAKE_CURRENT_BINARY_DIR}/puredart")
 
 add_library(puredart_demo SHARED demo.cpp)
 target_compile_features(puredart_demo PRIVATE cxx_std_17)

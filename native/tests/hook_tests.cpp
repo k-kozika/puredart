@@ -1,4 +1,4 @@
-#include <nativehook/hook.h>
+#include <purenative/hook.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -17,7 +17,7 @@ bool mapped(uintptr_t address, size_t size) {
 }
 }
 void run(size_t size) {
-    using namespace nativehook;
+    using namespace purenative;
     testing::page_size(size);
     void* mapping = mmap(nullptr, size * 2, PROT_READ | PROT_WRITE,
                                            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -68,26 +68,26 @@ void run(size_t size) {
     expect(read(dart_original - 32) == 0xa9bf47f0, "Dart veneer saves IP registers");
     uintptr_t unchanged = 17;
     expect(!redirect_all({{base, replacement, &unchanged}}) && unchanged == 17, "reject existing patch");
-    expect(!nativehook::remove({0}), "reject invalid handle");
+    expect(!purenative::remove({0}), "reject invalid handle");
     testing::fail_next(testing::Failure::writable);
-    expect(!nativehook::remove(handles[0]) && read(base) != 0xa9bf7bfd, "failed removal leaves hook intact");
-    expect(nativehook::remove(handles[0]) && read(base) == 0xa9bf7bfd, "restore original instruction");
+    expect(!purenative::remove(handles[0]) && read(base) != 0xa9bf7bfd, "failed removal leaves hook intact");
+    expect(purenative::remove(handles[0]) && read(base) == 0xa9bf7bfd, "restore original instruction");
     expect(mapped(veneer, size), "shared veneer remains for second hook");
-    expect(!nativehook::remove(handles[0]), "reject stale handle");
-    expect(nativehook::remove(handles[1]) && read(base + 36) == 0xf81f0fe0, "restore BTI-adjacent instruction");
+    expect(!purenative::remove(handles[0]), "reject stale handle");
+    expect(purenative::remove(handles[1]) && read(base + 36) == 0xf81f0fe0, "restore BTI-adjacent instruction");
     expect(!mapped(veneer, size), "last removal releases veneer");
     handles.clear();
     expect(redirect_all({{base, replacement, &original}}, &handles), "reinstall removed entry");
-    expect(nativehook::remove(handles[0]), "remove reinstalled hook");
+    expect(purenative::remove(handles[0]), "remove reinstalled hook");
     handles.clear();
     expect(redirect_all({{base + 160, replacement, &dart_original, true, 15}}, &handles),
            "install alternate-stack hook");
     expect(read(dart_original - 32) == 0xa9bf45f0 && read(dart_original + 4) == 0xa8c145f0 &&
            read(dart_original + 8) == 0xa9bf79fd,
            "alternate-stack veneer and trampoline preserve IP registers through x15");
-    expect(nativehook::remove(handles[0]) && read(base + 160) == 0xa9bf79fd,
+    expect(purenative::remove(handles[0]) && read(base + 160) == 0xa9bf79fd,
            "remove alternate-stack hook");
     munmap(mapping, size * 2);
 }
 
-int main() { run(4096); run(16384); std::puts("nativehook 4 KiB/16 KiB tests passed"); }
+int main() { run(4096); run(16384); std::puts("purenative 4 KiB/16 KiB tests passed"); }

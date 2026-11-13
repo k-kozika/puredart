@@ -1,11 +1,11 @@
-#include "puredart/hook.h"
+#include "hook_internal.h"
 
 #include <array>
 #include <atomic>
 #include <memory>
 #include <mutex>
 #include <new>
-#include <nativehook/hook.h>
+#include <purenative/hook.h>
 #include <thread>
 #include <utility>
 
@@ -27,7 +27,7 @@ struct Slot {
     std::atomic<puredart::HookCallback*> published_callback{nullptr};
     std::atomic<size_t> dispatchers{0};
     uintptr_t address{};
-    nativehook::Handle handle{};
+    purenative::Handle handle{};
 };
 
 std::array<Slot, kHookSlots> slots;
@@ -146,10 +146,10 @@ bool hook(uintptr_t address, HookCallback callback, void** original) noexcept {
     }
     if (slot == kHookSlots) return false;
     if (!publish_callback(slots[slot], std::move(callback))) return false;
-    std::vector<nativehook::Handle> handles;
+    std::vector<purenative::Handle> handles;
     bool redirected = false;
     try {
-        redirected = nativehook::redirect_all(
+        redirected = purenative::redirect_all(
             {{address, reinterpret_cast<uintptr_t>(proxies[slot]),
               &puredart_hook_originals[slot], true, 15}}, &handles);
     } catch (...) {
@@ -185,7 +185,7 @@ bool unhook(uintptr_t address) noexcept {
         }
     }
     if (slot == kHookSlots || (dispatching_slots & (uint32_t{1} << slot)) != 0) return false;
-    if (!nativehook::remove(slots[slot].handle)) return false;
+    if (!purenative::remove(slots[slot].handle)) return false;
 
     clear_callback(slots[slot]);
     slots[slot].address = 0;

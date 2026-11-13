@@ -3,8 +3,9 @@
 A small C++17 adapter for hooking Android ARM64 Dart AOT function entries.
 The implementation has three layers:
 
-- `native/`: Dart-independent ARM64 inline hooks (`nativehook::core`).
-- `puredart::core`: Dart register snapshots, argument/return changes, and basic value reads.
+- `native/`: Dart-independent ARM64 inline hooks (`purenative::core`).
+- `dart/`: Dart register snapshots, argument/return changes, basic value reads,
+  and Blutter metadata (`puredart::core`, backed by `purenative::core`).
 - Consumer: app-specific hook callbacks and generated Blutter metadata.
 
 There is no external hook-engine dependency. Native consumers can add only
@@ -28,21 +29,63 @@ ShadowCallStack guard. Runtime hooks require Android ARM64.
 Android integration:
 
 ```cmake
-add_subdirectory(path/to/puredart puredart_build)
+add_subdirectory(path/to/puredart/dart puredart_build)
 target_link_libraries(my_hook PRIVATE puredart::core)
 puredart_add_meta(my_hook /absolute/path/to/blutter_meta.cpp)
 ```
 
-Relative metadata paths resolve under `PUREDART_META_DIR` (default `meta/`).
+Relative metadata paths resolve under `PUREDART_META_DIR` (default `dart/meta/`
+in this checkout).
 Missing metadata is a configure-time error. `PUREDART_ENABLE_RUNTIME_HOOKS=OFF`
 builds only metadata lookup and basic value reads.
 
 For a native-only consumer:
 
 ```cmake
-add_subdirectory(path/to/puredart/native nativehook_build)
-target_link_libraries(my_native_hook PRIVATE nativehook::core)
+add_subdirectory(path/to/puredart/native purenative_build)
+target_link_libraries(my_native_hook PRIVATE purenative::core)
 ```
+
+Its C++ interface is `<purenative/hook.h>` in namespace `purenative`.
+
+To use both libraries explicitly:
+
+```cmake
+add_subdirectory(path/to/puredart/native purenative_build)
+add_subdirectory(path/to/puredart/dart puredart_build)
+target_link_libraries(my_hook PRIVATE purenative::core puredart::core)
+puredart_add_meta(my_hook /absolute/path/to/blutter_meta.cpp)
+```
+
+Either subdirectory order works: the Dart adapter reuses `purenative::core`
+if it exists, or adds it automatically when runtime hooks are enabled.
+With runtime hooks disabled, adding only `dart/` does not build native hooks.
+The repository root adds both libraries for combined builds.
+
+Each library can also be built and tested on its own:
+
+```sh
+cmake -S native -B build/native-only
+cmake --build build/native-only
+ctest --test-dir build/native-only --output-on-failure
+cmake -S dart -B build/dart-only
+cmake --build build/dart-only
+ctest --test-dir build/dart-only --output-on-failure
+```
+
+`PURENATIVE_BUILD_TESTS` and `PUREDART_BUILD_TESTS` control host tests
+independently. Each defaults to on for its top-level project and off when
+included by another project. The repository root defaults both to on.
+Dart's Blutter dependency, metadata helper, and generation tools live under
+`dart/`; native-only builds need none of them. The ARM64 patch implementation
+and its calling-convention options live in `native/`; Dart ABI shims, callback
+management, `libapp.so` discovery, and metadata/value handling live in `dart/`.
+
+When updating a checkout from the previous layout, use fresh CMake build
+directories and move any generated metadata from `meta/` to `dart/meta/` (or
+set `PUREDART_META_DIR` explicitly). Rebuild cached Blutter executables from
+the moved sources in a fresh build directory: they embed the absolute path
+to their script templates.
 
 ## Hook behavior
 
@@ -78,14 +121,14 @@ unsupported prologues, PAC entry sequences, duplicate entries, and unavailable
 nearby mappings are rejected before the batch is patched. This is an entry-hook
 engine with a limited prologue contract, not a general instruction relocator.
 
-Native hooks use `nativehook::redirect_all()` and optional `Handle` outputs.
+Native hooks use `purenative::redirect_all()` and optional `Handle` outputs.
 A native replacement may use the ABI scratch register x16. The Dart adapter
 uses the engine's `preserve_ip` contract with x15 as its stack register: the
 veneer saves x16/x17, and the shim or original trampoline consumes that frame. C++ callbacks run on an aligned
 native stack, with both x15 (Dart SP) and CPU SP restored on exit. Its trampoline
 pointer must not be called directly from C++.
 
-`unhook(address)` / `nativehook::remove(handle)` require the caller to ensure
+`unhook(address)` / `purenative::remove(handle)` require the caller to ensure
 that no thread is executing the target, replacement, callback, or trampoline,
 and to prevent new calls until removal completes. Never unhook from a callback.
 Removal restores the original instruction and frees a shared veneer page only
@@ -117,7 +160,7 @@ The [Blutter fork's `feat/metadata` branch](https://github.com/k-kozika/blutter/
 is pinned to `46c64d36cd9ab493b253e87952d8d56989e6a182`:
 
 ```sh
-tools/blutter/setup-blutter.sh
+dart/tools/blutter/setup-blutter.sh
 ```
 
 A normal analysis emits `blutter_meta.cpp` and `blutter_meta.h` alongside the
@@ -130,7 +173,7 @@ existing Blutter outputs, containing:
 Use repeatable `--metadata-class` options to emit only selected classes:
 
 ```sh
-python3 third_party/blutter/blutter.py path/to/app.apk out_dir --rebuild \
+python3 dart/third_party/blutter/blutter.py path/to/app.apk out_dir --rebuild \
   --metadata-class MyHomePage \
   --metadata-class 'package:app/main.dart::_MyHomePageState'
 ```
@@ -144,8 +187,8 @@ Other Blutter outputs and analysis are unchanged. Omit the options for full
 metadata. The metadata ABI and runtime lookup names remain unchanged.
 
 CLI regression tests run with `python3 -m unittest discover -s
-third_party/blutter/tests`. To check generated bundles against the release demo,
-run `python3 tests/check_metadata_filter.py --blutter <rebuilt-executable>
+dart/third_party/blutter/tests`. To check generated bundles against the release demo,
+run `python3 dart/tests/check_metadata_filter.py --blutter <rebuilt-executable>
 --libapp <demo-libapp.so>`. This compiles and validates the generated C++ and
 checks class, symbol, and constant lookups.
 
@@ -165,7 +208,7 @@ puredart's own engine. Frida only injects the library.
 To build the standalone Android ARM64 runtime tests:
 
 ```sh
-cmake -S . -B build-device \
+cmake -S dart -B build-device \
   -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
   -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26 \
   -DANDROID_STL=c++_static -DPUREDART_BUILD_DEVICE_TESTS=ON
@@ -182,4 +225,4 @@ when devices are available.
 ## License
 
 puredart is licensed under [MPL-2.0](LICENSE). The pinned Blutter submodule
-retains its own [MIT license](third_party/blutter/LICENSE).
+retains its own [MIT license](dart/third_party/blutter/LICENSE).

@@ -1,6 +1,6 @@
 # Build outputs and target-specific generated metadata
 build/
-/meta/
+/dart/meta/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake

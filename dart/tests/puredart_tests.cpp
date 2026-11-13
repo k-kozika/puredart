@@ -1,4 +1,7 @@
 #include "puredart/puredart.h"
+#if defined(PUREDART_TESTING)
+#include "hook_internal.h"
+#endif
 #include <MetadataNaming.h>
 
 #include <array>

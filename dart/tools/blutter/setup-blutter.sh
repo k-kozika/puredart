@@ -3,13 +3,14 @@ set -euo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 puredart_dir=$(cd "$script_dir/../.." && pwd)
+repo_dir=$(cd "$puredart_dir/.." && pwd)
 blutter_dir=${1:-"$puredart_dir/third_party/blutter"}
 expected_commit=46c64d36cd9ab493b253e87952d8d56989e6a182
 
 if [[ ! -e "$blutter_dir/.git" ]]; then
-    if [[ "$blutter_dir" == "$puredart_dir/third_party/blutter" && -e "$puredart_dir/.git" ]]; then
+    if [[ "$blutter_dir" == "$puredart_dir/third_party/blutter" && -e "$repo_dir/.git" ]]; then
         echo "puredart: initializing pinned blutter submodule" >&2
-        git -C "$puredart_dir" submodule update --init --recursive third_party/blutter
+        git -C "$repo_dir" submodule update --init --recursive dart/third_party/blutter
     else
         echo "puredart: standalone checkout; cloning pinned blutter" >&2
         git clone --branch feat/metadata https://github.com/k-kozika/blutter.git "$blutter_dir"

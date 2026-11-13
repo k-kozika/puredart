@@ -1,4 +1,4 @@
-#include "nativehook/hook.h"
+#include "purenative/hook.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -10,13 +10,13 @@
 #if defined(__ANDROID__)
 #include <android/log.h>
 #endif
-#if defined(__ANDROID__) || defined(NATIVEHOOK_TESTING)
+#if defined(__ANDROID__) || defined(PURENATIVE_TESTING)
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
 
-namespace nativehook {
-#if (defined(__ANDROID__) && defined(__aarch64__)) || defined(NATIVEHOOK_TESTING)
+namespace purenative {
+#if (defined(__ANDROID__) && defined(__aarch64__)) || defined(PURENATIVE_TESTING)
 namespace {
 constexpr size_t kStride = 64;
 struct Batch {
@@ -35,16 +35,16 @@ struct Patch {
 std::mutex mutex;
 std::unordered_map<uint64_t, Patch> patches;
 uint64_t next_id = 1;
-#if defined(NATIVEHOOK_TESTING)
+#if defined(PURENATIVE_TESTING)
 testing::Failure failure{};
 size_t test_page_size{};
 #endif
 
 void log_error(const char* message) {
 #if defined(__ANDROID__)
-    __android_log_print(ANDROID_LOG_ERROR, "NativeHook", "%s", message);
+    __android_log_print(ANDROID_LOG_ERROR, "Purenative", "%s", message);
 #else
-    std::fprintf(stderr, "nativehook: %s\n", message);
+    std::fprintf(stderr, "purenative: %s\n", message);
 #endif
 }
 
@@ -108,7 +108,7 @@ bool make_writable(const std::vector<Page>& pages, size_t size) {
     size_t writable = 0;
     for (const auto& page : pages) {
         bool failed = false;
-#if defined(NATIVEHOOK_TESTING)
+#if defined(PURENATIVE_TESTING)
         if (failure == testing::Failure::writable) { failure = {}; failed = true; }
 #endif
         if (failed || mprotect(reinterpret_cast<void*>(page.address), size,
@@ -137,7 +137,7 @@ bool redirect_all(const std::vector<Redirect>& redirects, std::vector<Handle>* h
         const long system_size = sysconf(_SC_PAGESIZE);
         if (system_size <= 0) return false;
         size_t size = static_cast<size_t>(system_size);
-#if defined(NATIVEHOOK_TESTING)
+#if defined(PURENATIVE_TESTING)
         if (test_page_size) size = test_page_size;
 #endif
         if ((size & (size - 1)) != 0 || redirects.size() > size / kStride) return false;
@@ -169,7 +169,7 @@ bool redirect_all(const std::vector<Redirect>& redirects, std::vector<Handle>* h
         }
         auto batch = std::make_shared<Batch>();
         batch->size = size;
-#if defined(NATIVEHOOK_TESTING)
+#if defined(PURENATIVE_TESTING)
         if (failure == testing::Failure::allocation) { failure = {}; return false; }
 #endif
         const uintptr_t origin = prepared.front().site & ~(size - 1);
@@ -262,7 +262,7 @@ bool remove(Handle handle) noexcept {
         return true;
     } catch (...) { return false; }
 }
-#if defined(NATIVEHOOK_TESTING)
+#if defined(PURENATIVE_TESTING)
 void testing::fail_next(Failure value) noexcept { std::lock_guard lock(mutex); failure = value; }
 void testing::page_size(size_t value) noexcept { std::lock_guard lock(mutex); test_page_size = value; }
 #endif
@@ -273,4 +273,4 @@ bool redirect_all(const std::vector<Redirect>& redirects, std::vector<Handle>* h
 }
 bool remove(Handle) noexcept { return false; }
 #endif
-}  // namespace nativehook
+}  // namespace purenative

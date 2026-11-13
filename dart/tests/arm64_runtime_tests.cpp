@@ -1,5 +1,5 @@
 #include <puredart/puredart.h>
-#include <nativehook/hook.h>
+#include <purenative/hook.h>
 #include <array>
 #include <cstdio>
 #include <cstdlib>
@@ -64,7 +64,7 @@ int main() {
     auto* code = static_cast<unsigned char*>(mmap(nullptr, size, PROT_READ | PROT_WRITE,
                                                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
     expect(code != MAP_FAILED, "allocate slot targets");
-    const uint32_t instructions[] = {nativehook::kBtiC, 0xa9bf79fd, 0xd2800020, 0xa8c179fd, nativehook::kRet};
+    const uint32_t instructions[] = {purenative::kBtiC, 0xa9bf79fd, 0xd2800020, 0xa8c179fd, purenative::kRet};
     for (size_t i = 0; i < hook_capacity() + 1; ++i) std::memcpy(code + i * 32, instructions, sizeof(instructions));
     __builtin___clear_cache(reinterpret_cast<char*>(code), reinterpret_cast<char*>(code + size));
     expect(mprotect(code, size, PROT_READ | PROT_EXEC) == 0, "protect slot targets");

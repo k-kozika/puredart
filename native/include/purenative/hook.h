@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace nativehook {
+namespace purenative {
 
 constexpr uint32_t kRet = 0xd65f03c0;
 constexpr uint32_t kNop = 0xd503201f;
@@ -40,7 +40,7 @@ bool redirect_all(const std::vector<Redirect>& redirects,
 // and prevent new calls until removal completes. Never remove from a callback.
 bool remove(Handle handle) noexcept;
 
-#if defined(NATIVEHOOK_TESTING)
+#if defined(PURENATIVE_TESTING)
 namespace testing {
 enum class Failure { none, allocation, writable };
 void fail_next(Failure failure) noexcept;
@@ -48,4 +48,4 @@ void page_size(size_t size) noexcept;
 }
 #endif
 
-}  // namespace nativehook
+}  // namespace purenative

@@ -32,14 +32,6 @@ bool unhook(uintptr_t address) noexcept;
 size_t hook_capacity() noexcept;
 size_t hook_count() noexcept;
 
-namespace detail {
-void dispatch_hook(size_t slot, HookContext& context) noexcept;
-#if defined(PUREDART_TESTING)
-bool publish_hook_callback_for_testing(size_t slot, HookCallback callback) noexcept;
-void clear_hook_callback_for_testing(size_t slot) noexcept;
-#endif
-}
-
 }  // namespace puredart
 
 #define PUREDART_CONCAT_INNER(a, b) a##b
