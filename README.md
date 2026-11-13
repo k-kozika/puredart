@@ -203,7 +203,7 @@ make stale data appear compatible.
 
 ## Runtime verification
 
-The [injection demo](example/demo/README.md) overrides an integer return using
+The [injection demo](dart/example/demo/README.md) overrides an integer return using
 puredart's own engine. Frida only injects the library.
 
 To build the standalone Android ARM64 runtime tests:

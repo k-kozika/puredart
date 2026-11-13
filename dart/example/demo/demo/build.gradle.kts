@@ -2,7 +2,7 @@ plugins {
     id("com.android.library")
 }
 
-val puredartRoot = rootProject.file("../..").canonicalPath
+val puredartRoot = rootProject.file("../../..").canonicalPath
 val puredartMeta = providers.gradleProperty("puredartMeta").orNull
     ?: error("Pass -PpuredartMeta=/absolute/path/to/blutter_meta.cpp")
 

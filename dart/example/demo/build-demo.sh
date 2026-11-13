@@ -2,8 +2,8 @@
 set -euo pipefail
 
 demo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-root_dir=$(cd "$demo_dir/../.." && pwd)
-app_dir="$root_dir/example/app"
+root_dir=$(cd "$demo_dir/../../.." && pwd)
+app_dir="$root_dir/dart/example/app"
 blutter_dir="$root_dir/dart/third_party/blutter"
 analysis_dir="$demo_dir/build/analysis"
 meta_file="$analysis_dir/blutter_meta.cpp"
@@ -40,7 +40,7 @@ export ANDROID_HOME="$android_sdk"
 import json, sys
 version = json.load(sys.stdin)
 if version.get("frameworkVersion") != "3.41.2" or version.get("dartSdkVersion", "").split(" ")[0] != "3.11.0":
-    sys.exit("puredart demo: requires Flutter 3.41.2 / Dart 3.11.0; use example/app/mise.toml or FLUTTER_BIN")
+    sys.exit("puredart demo: requires Flutter 3.41.2 / Dart 3.11.0; use dart/example/app/mise.toml or FLUTTER_BIN")
 '
     "$flutter_bin" build apk --release --target-platform android-arm64
 )

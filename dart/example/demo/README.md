@@ -14,14 +14,14 @@ puredart. The demo does not allocate or write Dart heap objects.
 - Flutter 3.41.2 / Dart 3.11.0 (the pinned Blutter does not support Dart 3.13 snapshots).
 - Android SDK 37 and NDK 28.2.13676358.
 - ARM64 Android device with root, `su`, and a matching Frida server.
-- JDK 17 or newer, Python 3, Git, CMake, Ninja, and the [Blutter host dependencies](../../dart/third_party/blutter/README.md).
+- JDK 17 or newer, Python 3, Git, CMake, Ninja, and the [Blutter host dependencies](../../third_party/blutter/README.md).
 - `adb` and `frida` to run the injection demo.
 
 ## Build and run
 
 ```sh
 git clone --recurse-submodules https://github.com/k-kozika/puredart.git
-cd puredart/example/demo
+cd puredart/dart/example/demo
 export ANDROID_HOME=/path/to/android-sdk
 export FLUTTER_BIN=/path/to/flutter-3.41.2/bin/flutter
 ./build-demo.sh
@@ -29,7 +29,7 @@ export FLUTTER_BIN=/path/to/flutter-3.41.2/bin/flutter
 ```
 
 `FLUTTER_BIN` is optional when the pinned Flutter is on PATH. With mise, run
-`mise install` in `example/app`, then `mise exec -- ../demo/build-demo.sh`.
+`mise install` in `dart/example/app`, then `mise exec -- ../demo/build-demo.sh`.
 The build checks Flutter/Dart versions before compiling; the app also limits
 its Dart SDK to 3.11.x. Gradle wrapper scripts and their JAR are included in
 this repository. SDK paths, signing keys, and generated build outputs are

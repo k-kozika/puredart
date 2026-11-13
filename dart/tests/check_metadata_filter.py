@@ -1,4 +1,4 @@
-"""Integration check using the release APK built from example/app.
+"""Integration check using the release APK built from dart/example/app.
 
 python3 dart/tests/check_metadata_filter.py --blutter <rebuilt-native-executable> \
     --libapp <libapp.so-extracted-from-demo-apk>
