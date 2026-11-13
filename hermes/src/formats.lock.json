@@ -1,0 +1,22 @@
+{
+  "96": {
+    "repository": "https://github.com/facebook/hermes",
+    "commit": "2afc7b09ffc74201b4dd530d9414b48e61a5196f",
+    "ret_opcode": 92
+  },
+  "97": {
+    "repository": "https://github.com/facebook/hermes",
+    "commit": "16b5ada8272d23455ff63fac57353fd0f5041ee3",
+    "ret_opcode": 104
+  },
+  "98": {
+    "repository": "https://github.com/facebook/hermes",
+    "commit": "becc964bd16002569bf74c4d8c190cfd2ad38985",
+    "ret_opcode": 118
+  },
+  "99": {
+    "repository": "https://github.com/facebook/hermes",
+    "commit": "9a115f15785851f4ff2747ebb090ddd066fc8ad2",
+    "ret_opcode": 118
+  }
+}

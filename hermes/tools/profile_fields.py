@@ -1,0 +1,26 @@
+"""RuntimeProfile aggregate field order; independent of JSON key ordering."""
+
+PROFILE_FIELDS = (
+    "build_id",
+    "hbc_version",
+    "factory_rva",
+    "map_string_rva",
+    "destructor_rva",
+    "dispatch_table_rva",
+    "ret_handler_rva",
+    "factory_instruction",
+    "map_instruction",
+    "destructor_instruction",
+    "ip_register",
+    "frame_register",
+    "factory_sret",
+    "lazy_string_rva",
+    "symbol_handle_rva",
+    "lazy_instruction",
+    "symbol_handle_instruction",
+    "lazy_has_runtime",
+    "closure_offset",
+    "function_codeblock_offset",
+    "module_runtime_offset",
+    "pointer_key_offset",
+)

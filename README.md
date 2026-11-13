@@ -1,13 +1,15 @@
 # puredart
 
-A small C++17 adapter for hooking Android ARM64 Dart AOT function entries.
-The implementation has three layers:
+Small C++17 Android ARM64 hooks for Dart AOT and the Hermes interpreter.
+The repository provides:
 
 - `native/`: Dart-independent ARM64 inline hooks (`purenative::core`).
 - `dart/`: Dart register snapshots, argument/return changes, basic value reads,
   and Blutter metadata (`puredart::core`, backed by `purenative::core`).
-- Consumer: app-specific hook callbacks and generated Blutter metadata.
+- `hermes/`: Hermes HBC 96–99 readers and Android ARM64 return/literal hooks
+  (`purehermes::core`, also backed by `purenative::core`). See [purehermes](hermes/README.md).
 
+Consumers supply app-specific hook callbacks and generated metadata.
 Shared host-side SDK/ADB and ELF/DWARF helpers live in [tools/](tools/README.md).
 
 There is no external hook-engine dependency. Native consumers can add only
@@ -62,7 +64,7 @@ puredart_add_meta(my_hook /absolute/path/to/blutter_meta.cpp)
 Either subdirectory order works: the Dart adapter reuses `purenative::core`
 if it exists, or adds it automatically when runtime hooks are enabled.
 With runtime hooks disabled, adding only `dart/` does not build native hooks.
-The repository root adds both libraries for combined builds.
+The repository root also adds `purehermes::core` for combined builds.
 
 Each library can also be built and tested on its own:
 
@@ -73,11 +75,14 @@ ctest --test-dir build/native-only --output-on-failure
 cmake -S dart -B build/dart-only
 cmake --build build/dart-only
 ctest --test-dir build/dart-only --output-on-failure
+cmake -S hermes -B build/hermes-only
+cmake --build build/hermes-only
+ctest --test-dir build/hermes-only --output-on-failure
 ```
 
-`PURENATIVE_BUILD_TESTS` and `PUREDART_BUILD_TESTS` control host tests
-independently. Each defaults to on for its top-level project and off when
-included by another project. The repository root defaults both to on.
+`PURENATIVE_BUILD_TESTS`, `PUREDART_BUILD_TESTS`, and `PUREHERMES_BUILD_TESTS`
+control host tests independently. Each defaults to on for its top-level project and off when
+included by another project. The repository root defaults all three to on.
 `HOOKTOOLS_BUILD_TESTS` controls the shared Python helper suite when uv is
 available; the root project defaults it to on. Run `uv sync --locked` for the
 Python tools. All entry points use the root `pyproject.toml` / `uv.lock`; extra
@@ -233,3 +238,4 @@ when devices are available.
 
 puredart is licensed under [MPL-2.0](LICENSE). The pinned Blutter submodule
 retains its own [MIT license](dart/third_party/blutter/LICENSE).
+Generated Hermes format definitions retain Meta's [MIT notice](hermes/third_party/HERMES-LICENSE).

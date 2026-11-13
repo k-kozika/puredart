@@ -1,0 +1,31 @@
+file(MAKE_DIRECTORY "${WORK}")
+set(header "${WORK}/counter_meta.h")
+execute_process(COMMAND "${TOOL}" "${FIXTURE}" --emit "${header}"
+    --function-name update --alias updater --string-value +1 --alias title
+    RESULT_VARIABLE status ERROR_VARIABLE error)
+if(NOT status EQUAL 0)
+    message(FATAL_ERROR "metadata emission failed: ${error}")
+endif()
+file(SHA256 "${header}" expected)
+foreach(mode IN ITEMS reserved duplicate missing)
+    if(mode STREQUAL "reserved")
+        set(arguments --function 1 --alias bytes)
+    elseif(mode STREQUAL "duplicate")
+        set(arguments --function-name update --alias same --string-value +1 --alias same)
+    else()
+        set(arguments --function-name MissingFunction --alias missing)
+    endif()
+    execute_process(COMMAND "${TOOL}" "${FIXTURE}" --emit "${header}" ${arguments}
+        RESULT_VARIABLE status OUTPUT_QUIET ERROR_QUIET)
+    file(SHA256 "${header}" actual)
+    if(status EQUAL 0 OR NOT expected STREQUAL actual)
+        message(FATAL_ERROR "${mode} must fail without truncating existing metadata")
+    endif()
+endforeach()
+file(SIZE "${FIXTURE}" size)
+execute_process(COMMAND "${CXX}" -std=c++17 "-I${INCLUDE}" "-I${WORK}"
+    "-DEXPECTED_BYTES=${size}" -fsyntax-only "${CMAKE_CURRENT_LIST_DIR}/meta_consumer.cpp"
+    RESULT_VARIABLE status OUTPUT_VARIABLE out ERROR_VARIABLE error)
+if(NOT status EQUAL 0)
+    message(FATAL_ERROR "generated metadata cannot compile: ${out}\n${error}")
+endif()
