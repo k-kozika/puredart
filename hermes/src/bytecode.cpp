@@ -205,7 +205,7 @@ Bundle Bundle::read(const uint8_t* bytes, size_t size) {
             values[field.name] = uint32_t(val);
             bit += field.bits;
         }
-        const uint8_t flags = uint8_t(r.u(f + fmt.function_size - 1, 1));
+        uint8_t flags = uint8_t(r.u(f + fmt.function_size - 1, 1));
         if (flags & 32) {
             size_t large =
                 out.version_ == 96 ? (get(values, "infoOffset") << 16) | get(values, "offset")
@@ -217,6 +217,7 @@ Bundle Bundle::read(const uint8_t* bytes, size_t size) {
                 values[field.name] = uint32_t(r.u(large, field.full_width));
                 large += field.full_width;
             }
+            flags = uint8_t(r.u(large, 1));
         }
         Function fun;
         fun.kind = flags >> 6;

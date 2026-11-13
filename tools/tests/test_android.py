@@ -1,5 +1,6 @@
 """Exercise host-tool selection and local ADB through fake executables."""
 
+import contextlib
 import json
 import os
 import pathlib
@@ -81,6 +82,43 @@ class AndroidToolsTest(unittest.TestCase):
         with mock.patch("pathlib.Path.home", return_value=self.root / "empty home"):
             self.assertEqual(find_adb(), str(adb))
             self.assertEqual(json.loads(Device().run("version").stdout), ["version"])
+
+    def test_configured_adb_relative_path(self):
+        local = self.root / "adb"
+        self.install_fixture(local, "adb.py")
+        alternate = self.root / "alternate"
+        alternate.mkdir()
+        self.install_fixture(alternate / "adb", "adb.py")
+        (self.bin / "python3").symlink_to(sys.executable)
+        for on_path in (False, True):
+            os.environ["PATH"] = (str(alternate) + os.pathsep if on_path else "") + str(
+                self.bin
+            )
+            for source in ("argument", "environment"):
+                with (
+                    self.subTest(on_path=on_path, source=source),
+                    contextlib.chdir(self.root),
+                ):
+                    os.environ["ADB_BIN"] = "./adb" if source == "environment" else ""
+                    explicit = "./adb" if source == "argument" else None
+                    self.assertEqual(pathlib.Path(find_adb(explicit)).resolve(), local)
+                    self.assertEqual(
+                        json.loads(Device(adb=explicit).run("version").stdout),
+                        ["version"],
+                    )
+
+    def test_missing_adb_relative_path_does_not_fall_back_to_path(self):
+        self.install_fixture(self.bin / "adb", "adb.py")
+        with contextlib.chdir(self.root):
+            with self.assertRaises(ValueError):
+                find_adb("./adb")
+
+    def test_configured_adb_command_name_searches_path(self):
+        adb = self.bin / "adb"
+        self.install_fixture(adb, "adb.py")
+        self.assertEqual(find_adb("adb"), str(adb))
+        os.environ["ADB_BIN"] = "adb"
+        self.assertEqual(find_adb(), str(adb))
 
     def test_ndk_prebuilt_uses_installed_host_tag(self):
         ndk = self.root / "ndk"

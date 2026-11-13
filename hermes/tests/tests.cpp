@@ -53,10 +53,56 @@ int main() {
             check(uses >= 3, "direct, array and object string references");
             check(std::find(b.strings().begin(), b.strings().end(), "🐘日本") != b.strings().end(),
                   "UTF16 surrogate decoding");
+            size_t regexps = 0;
+            for (const auto& function : b.functions())
+                for (const auto& in : function.instructions) {
+                    if (in.name != "CreateRegExp") continue;
+                    ++regexps;
+                    check(b.strings().at(in.operands.at(1)) == "hello" &&
+                              b.strings().at(in.operands.at(2)) == "g",
+                          "regexp string operands");
+                    for (size_t operand = 1; operand <= 2; ++operand) {
+                        check(std::count_if(b.string_uses().begin(), b.string_uses().end(),
+                                            [&](const auto& use) {
+                                                return use.string_id == in.operands[operand] &&
+                                                       use.function_id == function.id &&
+                                                       use.instruction_offset == in.offset;
+                                            }) == 1,
+                              "both regexp string references");
+                        auto invalid = b.bytes();
+                        // CreateRegExp has a Reg8 followed by three UInt32 operands.
+                        set(invalid, function.offset + in.offset + 2 + 4 * (operand - 1),
+                            uint32_t(b.strings().size()));
+                        rejects([&] { purehermes::Bundle::read(invalid.data(), invalid.size()); });
+                    }
+                }
+            check(regexps == 1, "regexp fixture");
+            size_t generators = 0;
+            for (const auto& generator : b.functions()) {
+                if (std::none_of(generator.instructions.begin(), generator.instructions.end(),
+                                 [](const auto& in) { return in.name == "CreateGenerator"; }))
+                    continue;
+                ++generators;
+                const bool wide = generator.name == "generator128";
+                check(generator.parameters == (wide ? 129 : 36), "generator parameters");
+                const size_t header_size = version == 96 ? 16 : 12;
+                const uint8_t flags = b.bytes().at(128 + (generator.id + 1) * header_size - 1);
+                check(bool(flags & 32) == (wide || version >= 98),
+                      "generator overflow fixture");
+                // HBC96 does not encode a function kind in its flags.
+                check(generator.kind == (version == 96 ? 0 : 1), "generator function kind");
+                check(!generator.returns.empty(), "generator has return sites");
+                if (version != 96) {
+                    purehermes::HookPlan generator_plan(b);
+                    rejects([&] { generator_plan.on_return({generator.id}, [](auto&) {}); });
+                }
+            }
+            check(generators == 2, "generator fixtures");
             auto large = purehermes::Bundle::read_file(std::string(FIXTURES) + "/large" +
                                                        std::to_string(version) + ".hbc");
             check(large.function("large").size == 40008 &&
-                      large.function("large").returns == std::vector<uint32_t>{40006},
+                      large.function("large").returns == std::vector<uint32_t>{40006} &&
+                      large.function("large").kind == 0,
                   "overflow function header");
             purehermes::HookPlan plan(b);
             plan.on_return({f.id}, [](auto& c) { c.set_number(c.number() + 9); });

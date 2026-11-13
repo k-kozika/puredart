@@ -52,7 +52,8 @@ def find_ndk_prebuilt(ndk):
 def find_adb(explicit=None, *, sdk=None):
     configured = explicit or os.environ.get("ADB_BIN")
     if configured:
-        executable = shutil.which(str(pathlib.Path(configured).expanduser()))
+        # Keep explicit path prefixes such as "./" for shutil.which().
+        executable = shutil.which(os.path.expanduser(configured))
         if executable:
             return executable
         raise ValueError(f"ADB executable not found: {configured}")

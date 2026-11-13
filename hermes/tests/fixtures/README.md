@@ -5,6 +5,12 @@
 40,008-byte function bodies and overflow headers. Both JavaScript inputs are
 checked in; tests do not construct source programs.
 
+The main fixture includes `/hello/g` to exercise both string-ID operands of
+`CreateRegExp`. Its 35-parameter generator overflows the small header in HBC98
+and HBC99; its 128-parameter generator overflows it in all four versions. These
+check function kinds and rejection of generator return hooks in HBC97–99
+(HBC96 does not encode function kinds).
+
 To regenerate with the official compilers pinned in `src/formats.lock.json`:
 
 ```sh

@@ -41,10 +41,10 @@ def generate(source_root, output):
             ],
             text=True,
         )
-        string_operands = {
-            name.strip(): int(n)
-            for name, n in re.findall(r"PH_STRING\(([^,]+),\s*(\d+)\)", preprocessed)
-        }
+        string_masks = {}
+        for name, n in re.findall(r"PH_STRING\(([^,]+),\s*(\d+)\)", preprocessed):
+            name = name.strip()
+            string_masks[name] = string_masks.get(name, 0) | (1 << (int(n) - 1))
         opcodes = []
         widths = {
             "Reg8": 1,
@@ -73,9 +73,7 @@ def generate(source_root, output):
                 '{"'
                 + name
                 + '",'
-                + str(
-                    (1 << (string_operands[name] - 1)) if name in string_operands else 0
-                )
+                + str(string_masks.get(name, 0))
                 + ","
                 + str(len(types))
                 + ",{"
